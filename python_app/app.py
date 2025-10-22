@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import List, Optional
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import messagebox, ttk
 
 from . import constants
 from .db_service import DBService, DatabaseError
@@ -39,6 +39,79 @@ SECTION_EDIT_FIELDS = [
     "LINE_NAME",
     "LINE_DIR",
 ]
+
+
+class EditDialog(tk.Toplevel):
+    """Modal dialog used to edit a record in a single window."""
+
+    def __init__(
+        self,
+        parent: tk.Tk,
+        title: str,
+        fields: List[str],
+        source: object,
+    ) -> None:
+        super().__init__(parent)
+        self.title(title)
+        self.transient(parent)
+        self.resizable(False, False)
+        self.grab_set()
+        self.result: Optional[dict[str, str]] = None
+        self._source = source
+
+        container = ttk.Frame(self, padding=10)
+        container.grid(row=0, column=0, sticky="nsew")
+        container.columnconfigure(1, weight=1)
+
+        self._variables: dict[str, tk.StringVar] = {}
+        first_entry: Optional[ttk.Entry] = None
+        for row, field in enumerate(fields):
+            ttk.Label(container, text=field).grid(
+                row=row, column=0, padx=(0, 8), pady=4, sticky="e"
+            )
+            value = getattr(source, field, "") or ""
+            var = tk.StringVar(value=str(value))
+            entry = ttk.Entry(container, textvariable=var, width=40)
+            entry.grid(row=row, column=1, padx=0, pady=4, sticky="ew")
+            self._variables[field] = var
+            if first_entry is None:
+                first_entry = entry
+
+        button_frame = ttk.Frame(self, padding=(10, 0, 10, 10))
+        button_frame.grid(row=1, column=0, sticky="ew")
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+
+        ok_button = ttk.Button(button_frame, text="确定", command=self._on_ok)
+        ok_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        cancel_button = ttk.Button(button_frame, text="取消", command=self._on_cancel)
+        cancel_button.grid(row=0, column=1, padx=(5, 0), sticky="ew")
+
+        self.bind("<Return>", lambda _event: self._on_ok())
+        self.bind("<Escape>", lambda _event: self._on_cancel())
+        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+
+        if first_entry is not None:
+            first_entry.focus()
+
+        self.wait_visibility()
+        self.wait_window(self)
+
+    def _on_ok(self) -> None:
+        changes: dict[str, str] = {}
+        for field, var in self._variables.items():
+            new_value = var.get().strip()
+            original = getattr(self._source, field, "") or ""
+            if new_value != str(original):
+                changes[field] = new_value
+        self.result = changes
+        self.grab_release()
+        self.destroy()
+
+    def _on_cancel(self) -> None:
+        self.result = None
+        self.grab_release()
+        self.destroy()
 
 
 class Application(tk.Tk):
@@ -331,13 +404,26 @@ class Application(tk.Tk):
             messagebox.showwarning("提示", "请选择区间。", parent=self)
             return
         section = self.selected_section
-        updates = self._prompt_for_updates("更新区间信息", SECTION_EDIT_FIELDS, section)
+        dialog = EditDialog(self, "更新区间信息", SECTION_EDIT_FIELDS, section)
+        updates = dialog.result
         if updates is None:
+            return
+        if not updates:
+            messagebox.showinfo("提示", "未检测到修改。", parent=self)
             return
         updated = replace(section)
         for field, value in updates.items():
             setattr(updated, field, value)
-        self.db.queue_update(updated, updated.PRIMARY_KEYS)
+        if self.section_listbox.curselection():
+            idx = self.section_listbox.curselection()[0]
+            self.sections[idx] = updated
+            label = f"{updated.SECTION_NAME} ({updated.SECTION_ID})"
+            self.section_listbox.delete(idx)
+            self.section_listbox.insert(idx, label)
+            self.section_listbox.selection_set(idx)
+        self.selected_section = updated
+        self._display_section_details(updated)
+        self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=updates)
         messagebox.showinfo("已记录", "区间更新操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("区间更新操作已加入队列。")
@@ -348,13 +434,28 @@ class Application(tk.Tk):
             messagebox.showwarning("提示", "请选择定标器。", parent=self)
             return
         device = self.selected_device
-        updates = self._prompt_for_updates("更新定标器信息", DEVICE_EDIT_FIELDS, device)
+        dialog = EditDialog(self, "更新定标器信息", DEVICE_EDIT_FIELDS, device)
+        updates = dialog.result
         if updates is None:
+            return
+        if not updates:
+            messagebox.showinfo("提示", "未检测到修改。", parent=self)
             return
         updated = replace(device)
         for field, value in updates.items():
             setattr(updated, field, value)
-        self.db.queue_update(updated, updated.PRIMARY_KEYS)
+        if self.devices_listbox.curselection():
+            idx = self.devices_listbox.curselection()[0]
+            self.devices[idx] = updated
+            label = (
+                f"{updated.POINT_NAME or '未命名'} ({updated.POINT_NO})"
+                f" - {updated.TYPE or '未知类型'}"
+            )
+            self.devices_listbox.delete(idx)
+            self.devices_listbox.insert(idx, label)
+            self.devices_listbox.selection_set(idx)
+        self.selected_device = updated
+        self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=updates)
         messagebox.showinfo("已记录", "定标器更新操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("定标器更新操作已加入队列。")
@@ -396,29 +497,45 @@ class Application(tk.Tk):
     def refresh_operations(self) -> None:
         self.operations_listbox.delete(0, tk.END)
         for op in constants.STATE.get_operations():
-            summary = f"[{op.operation}] {op.table} - 主键: {', '.join(op.primary_keys)}"
+            summary = self._format_operation_entry(op)
             self.operations_listbox.insert(tk.END, summary)
         self._update_controls()
 
     # ------------------------------------------------------------------
-    def _prompt_for_updates(self, title: str, fields: List[str], source: object) -> Optional[dict[str, str]]:
-        updates: dict[str, str] = {}
-        for field in fields:
-            current = getattr(source, field, "") or ""
-            value = simpledialog.askstring(
-                title,
-                f"{field} (留空保持不变)",
-                initialvalue=str(current),
-                parent=self,
-            )
-            if value is None:
-                return None
-            value = value.strip()
-            if value == "":
-                updates[field] = current
+    def _format_operation_entry(self, op: constants.PushOperation) -> str:
+        primary_parts = []
+        for key in op.primary_keys:
+            value = op.payload.get(key)
+            primary_parts.append(f"{key}={self._display_value(value)}")
+
+        summary = f"[{op.operation}] {op.table}"
+        if primary_parts:
+            summary += f" ({', '.join(primary_parts)})"
+
+        detail_parts: List[str] = []
+        if op.operation == "DELETE":
+            detail_parts.append("删除记录")
+        else:
+            changes = op.changes or {}
+            if changes:
+                for key, value in changes.items():
+                    detail_parts.append(f"{key}={self._display_value(value)}")
             else:
-                updates[field] = value
-        return updates
+                for key, value in op.payload.items():
+                    if key in op.primary_keys:
+                        continue
+                    if value not in (None, ""):
+                        detail_parts.append(f"{key}={self._display_value(value)}")
+
+        if detail_parts:
+            summary += f" | {'; '.join(detail_parts)}"
+        return summary
+
+    @staticmethod
+    def _display_value(value: object) -> str:
+        if value in (None, ""):
+            return "(空)"
+        return str(value)
 
     # ------------------------------------------------------------------
     def _display_section_details(self, section: Section) -> None:

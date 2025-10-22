@@ -19,6 +19,7 @@ class PushOperation:
     status: int = 0
     error_count: int = 0
     raw_json: Optional[str] = None
+    changes: Optional[dict[str, str]] = None
 
 
 class AppState:

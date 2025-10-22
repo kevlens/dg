@@ -146,7 +146,13 @@ class DBService:
         return SectionLine(**payload)
 
     # ------------------------------------------------------------------
-    def queue_update(self, model: object, primary_keys: Iterable[str]) -> None:
+    def queue_update(
+        self,
+        model: object,
+        primary_keys: Iterable[str],
+        *,
+        changes: Optional[dict[str, str]] = None,
+    ) -> None:
         payload = asdict(model)
         table_name = payload.pop("TABLE_NAME", model.__class__.__name__)
         payload.pop("PRIMARY_KEYS", None)
@@ -157,6 +163,7 @@ class DBService:
                 payload=payload,
                 primary_keys=list(primary_keys),
                 added_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                changes=dict(changes) if changes else None,
             )
         )
 
