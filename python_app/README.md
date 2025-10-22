@@ -20,7 +20,10 @@ WinForms 相似的图形界面，可完成数据库连接、区间与定标器�
 
 推荐使用 **PyCharm** 进行运行与调试，以便直接在界面中设置断点。操作步骤：
 
-1. 使用 PyCharm 打开仓库根目录。
+1. 推荐直接使用 PyCharm 打开仓库根目录。如果仅打开 `DG/` 目录（原 WinForms
+   解决方案），也可以运行 Python 版：仓库在该目录下放置了一个
+   [`sitecustomize.py`](../DG/sitecustomize.py)，会在解释器启动时自动把仓库根目录
+   加到 `PYTHONPATH`，从而保证 `python_app.app` 能被正常导入。
 2. 在 "Run/Debug Configurations" 中新增一个 *Module name* 运行配置，模块填入
    `python_app.app`。
 3. 选择合适的 Python 解释器（需已安装 `pyodbc`）。
