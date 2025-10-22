@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<datatable>
+<dataname name="BROKENRAIL_BDATA_SECTION">
+  <item key="SECTION_NAME" value="SECTION_NAME"  note=""/>
+  <item key="DEPT_CODE" value="DEPT_CODE"  note=""/>
+  <item key="START_MILE" value="START_MILE"  note=""/>
+  <item key="END_MILE" value="END_MILE"  note=""/>
+  <item key="SECTION_ID" value="SECTION_ID"  note=""/>
+  <item key="LINE_NAME" value="LINE_NAME"  note="线名"/>
+  <item key="LINE_DIR" value="LINE_DIR"  note="行别"/>
+  <item key="GC_VOL" value="GC_VOL"  note="过车电压"/>
+  <item key="ENVIRONMENT_VOL" value="ENVIRONMENT_VOL"  note="环境电压"/>
+  <item key="START_SCALER_INDEX" value="START_SCALER_INDEX"  note="起始定标器编号"/>
+  <item key="END_SCALER_INDEX" value="END_SCALER_INDEX"  note="终止定标器编号, 为1开启假服务更新"/>
+  <item key="STATION_STATION" value="STATION_STATION"  note="站-站名称"/>
+</dataname>
+<dataname name="BROKENRAIL_BDATA_DEVICE">
+  <item key="POINT_NO" value="POINT_NO"  note=""/>
+  <item key="POINT_NAME" value="POINT_NAME"  note=""/>
+  <item key="LINE_CODE" value="LINE_CODE"  note=""/>
+  <item key="LINE_NAME" value="LINE_NAME"  note=""/>
+  <item key="LINE_DIR" value="LINE_DIR"  note=""/>
+  <item key="MILEAGE_COORDINATE" value="MILEAGE_COORDINATE"  note=""/>
+  <item key="LONGITUDE" value="LONGITUDE"  note=""/>
+  <item key="LATITUDE" value="LATITUDE"  note=""/>
+  <item key="MARSLONGITUDE" value="MARSLONGITUDE"  note=""/>
+  <item key="MARSLATITUDE" value="MARSLATITUDE"  note=""/>
+  <item key="BAIDULONGITUDE" value="BAIDULONGITUDE"  note=""/>
+  <item key="BAIDULATITUDE" value="BAIDULATITUDE"  note=""/>
+  <item key="POINT_ORDER" value="POINT_ORDER"  note=""/>
+  <item key="POINT_FLAG" value="POINT_FLAG"  note=""/>
+  <item key="POINT_NOTE" value="POINT_NOTE"  note=""/>
+  <item key="POINT_PHONENO" value="POINT_PHONENO"  note="(2017.11.28现被用作载波小区间断轨延时报的分钟数)"/>
+  <item key="TYPE" value="TYPE"  note=""/>
+  <item key="POSITION" value="POSITION"  note=""/>
+  <item key="SECTION_ID" value="SECTION_ID"  note=""/>
+  <item key="DEVICE_MODE" value="DEVICE_MODE"  note="电路，声波，载波"/>
+  <item key="MATCHUP_PHONE" value="MATCHUP_PHONE"  note="对应端手机号"/>
+  <item key="PREV_PHONE" value="PREV_PHONE"  note=""/>
+  <item key="NEXT_PHONE" value="NEXT_PHONE"  note=""/>
+  <item key="PREV_SCALER_MILEAGE" value="PREV_SCALER_MILEAGE"  note=""/>
+  <item key="NEXT_SCALER_MILEAGE" value="NEXT_SCALER_MILEAGE"  note=""/>
+  <item key="IS_END" value="IS_END"  note=""/>
+  <item key="LEFT_FREQUENCY" value="LEFT_FREQUENCY"  note=""/>
+  <item key="RIGHT_FREQUENCY" value="RIGHT_FREQUENCY"  note=""/>
+  <item key="VOLTAGE" value="VOLTAGE"  note="电压门限值"/>
+</dataname>
+<dataname name="BROKENRAIL_SECTION_LINE">
+  <item key="PKID" value="PKID"  note=""/>
+  <item key="经度" value="经度"  note=""/>
+  <item key="纬度" value="纬度"  note=""/>
+  <item key="火星经度" value="火星经度"  note=""/>
+  <item key="火星纬度" value="火星纬度"  note=""/>
+  <item key="百度经度" value="百度经度"  note=""/>
+  <item key="百度纬度" value="百度纬度"  note=""/>
+  <item key="POINT_NO" value="POINT_NO"  note=""/>
+  <item key="MILEAGE_START" value="MILEAGE_START"  note=""/>
+  <item key="MILEAGE_END" value="MILEAGE_END"  note=""/>
+</dataname>
+</datatable>

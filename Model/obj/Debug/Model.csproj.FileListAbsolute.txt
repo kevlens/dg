@@ -1,0 +1,10 @@
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\bin\Debug\Model.dll
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\bin\Debug\Model.pdb
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\bin\Debug\OracleSugar.dll
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\bin\Debug\Oracle.ManagedDataAccess.dll
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\bin\Debug\OracleSugar.xml
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\obj\Debug\Model.csproj.CoreCompileInputs.cache
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\obj\Debug\Model.csproj.CopyComplete
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\obj\Debug\Model.dll
+C:\Users\kevle\Source\Repos\dgdatatransfer\Model\obj\Debug\Model.pdb
+C:\Users\kevle\source\repos\dgdatatransfer\Model\obj\Debug\Model.csprojAssemblyReference.cache

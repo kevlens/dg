@@ -1,0 +1,109 @@
+﻿using System;
+using System.Linq;
+using System.Text;
+
+namespace Model
+{
+    public class T_CAROBD
+    {
+        
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:False 
+        /// </summary>
+        public string 手机号 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:False 
+        /// </summary>
+        public DateTime 时间 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public Single 油耗 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public string 油耗单位 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public int? 里程 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public int? 速度 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public Single 剩余油量 {get;set;}
+
+        /// <summary>
+        /// Desc:- 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public string 剩余油量单位 {get;set;}
+
+        /// <summary>
+        /// Desc:油单价 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public Double? OIL_PRICE {get;set;}
+
+        /// <summary>
+        /// Desc:车牌号 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public string CAR_LICENSENO {get;set;}
+
+        /// <summary>
+        /// Desc:行驶里程 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public int? MILEAGE {get;set;}
+
+        /// <summary>
+        /// Desc:是否人为校正 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public string CHANGE_FLAG {get;set;}
+
+        /// <summary>
+        /// Desc:校正里程 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public decimal? CHANGE_MILEAGE {get;set;}
+
+        /// <summary>
+        /// Desc:校正备注 
+        /// Default:- 
+        /// Nullable:True 
+        /// </summary>
+        public string CHANGE_NOTE {get;set;}
+
+    }
+}

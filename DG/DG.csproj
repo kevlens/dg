@@ -1,0 +1,211 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{0A2E5D28-97BD-4303-8E86-0B7EFDE8A9BE}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DG</RootNamespace>
+    <AssemblyName>DG</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BouncyCastle.Crypto, Version=1.8.6.0, Culture=neutral, PublicKeyToken=0e99375e54769942, processorArchitecture=MSIL">
+      <HintPath>..\packages\Portable.BouncyCastle.1.8.6\lib\net40\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
+    <Reference Include="ICSharpCode.SharpZipLib, Version=0.86.0.518, Culture=neutral, PublicKeyToken=1b03e6acf1164f73, processorArchitecture=MSIL">
+      <HintPath>..\packages\SharpZipLib.0.86.0\lib\20\ICSharpCode.SharpZipLib.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.3\lib\net40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI, Version=2.5.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.5.1\lib\net40\NPOI.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OOXML, Version=2.5.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.5.1\lib\net40\NPOI.OOXML.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OpenXml4Net, Version=2.5.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.5.1\lib\net40\NPOI.OpenXml4Net.dll</HintPath>
+    </Reference>
+    <Reference Include="NPOI.OpenXmlFormats, Version=2.5.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NPOI.2.5.1\lib\net40\NPOI.OpenXmlFormats.dll</HintPath>
+    </Reference>
+    <Reference Include="SqlSugar, Version=5.0.2.9, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\SqlSugar.5.0.2.9\lib\SqlSugar.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ChangePhone.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ChangePhone.Designer.cs">
+      <DependentUpon>ChangePhone.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Choose.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Choose.Designer.cs">
+      <DependentUpon>Choose.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Constant.cs" />
+    <Compile Include="Common\DBService.cs" />
+    <Compile Include="Common\DEVICE_LINE.cs" />
+    <Compile Include="Common\ExcelHelper.cs" />
+    <Compile Include="Common\SQLUtil.cs" />
+    <Compile Include="FormDeviceAdd.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormDeviceAdd.Designer.cs">
+      <DependentUpon>FormDeviceAdd.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FormAdd.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormAdd.Designer.cs">
+      <DependentUpon>FormAdd.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmBoundary.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmBoundary.Designer.cs">
+      <DependentUpon>FrmBoundary.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmDataExcel.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmDataExcel.Designer.cs">
+      <DependentUpon>FrmDataExcel.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmData.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmData.Designer.cs">
+      <DependentUpon>FrmData.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmGisStation.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmGisStation.Designer.cs">
+      <DependentUpon>FrmGisStation.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmGisLine.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmGisLine.Designer.cs">
+      <DependentUpon>FrmGisLine.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Main.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Main.Designer.cs">
+      <DependentUpon>Main.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="ChangePhone.resx">
+      <DependentUpon>ChangePhone.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Choose.resx">
+      <DependentUpon>Choose.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormDeviceAdd.resx">
+      <DependentUpon>FormDeviceAdd.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormAdd.resx">
+      <DependentUpon>FormAdd.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmBoundary.resx">
+      <DependentUpon>FrmBoundary.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmDataExcel.resx">
+      <DependentUpon>FrmDataExcel.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmData.resx">
+      <DependentUpon>FrmData.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmGisStation.resx">
+      <DependentUpon>FrmGisStation.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmGisLine.resx">
+      <DependentUpon>FrmGisLine.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Main.resx">
+      <DependentUpon>Main.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="excelData.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Model\Model.csproj">
+      <Project>{a5cc507d-bf0f-45bf-9444-f27d3760882c}</Project>
+      <Name>Model</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="backup\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
