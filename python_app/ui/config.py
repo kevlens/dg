@@ -1,5 +1,9 @@
 """Field definitions and display layouts for the Tkinter UI."""
 
+# Width settings -------------------------------------------------------------
+SECTION_LISTBOX_WIDTH = 36
+
+
 SECTION_DISPLAY_FIELDS = [
     "SECTION_ID",
     "SECTION_NAME",

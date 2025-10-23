@@ -8,7 +8,11 @@ from tkinter import ttk
 
 from .. import constants
 from ..models import Section, SectionLine
-from .config import SECTION_DISPLAY_FIELDS, SECTION_LINE_DISPLAY_FIELDS
+from .config import (
+    SECTION_DISPLAY_FIELDS,
+    SECTION_LINE_DISPLAY_FIELDS,
+    SECTION_LISTBOX_WIDTH,
+)
 
 
 class LayoutMixin:
@@ -72,7 +76,10 @@ class LayoutMixin:
         sections_frame.columnconfigure(0, weight=1)
 
         self.section_listbox = tk.Listbox(
-            sections_frame, exportselection=False, height=18
+            sections_frame,
+            exportselection=False,
+            height=18,
+            width=SECTION_LISTBOX_WIDTH,
         )
         self.section_listbox.grid(row=0, column=0, sticky="nsew")
         section_scroll = ttk.Scrollbar(
