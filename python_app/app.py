@@ -11,7 +11,7 @@ from tkinter import messagebox, ttk
 
 from . import constants
 from .db_service import DBService, DatabaseError
-from .models import Device, Section
+from .models import Device, Section, SectionLine
 from .sql_util import save_sql_scripts
 
 
@@ -76,11 +76,11 @@ DEVICE_CREATE_FIELDS = [
     "POINT_ORDER",
 ]
 
-DEVICE_PHONE_FIELDS = [
-    "POINT_PHONENO",
-    "MATCHUP_PHONE",
-    "PREV_PHONE",
-    "NEXT_PHONE",
+SECTION_LINE_DISPLAY_FIELDS = [
+    "PKID",
+    "POINT_NO",
+    "MILEAGE_START",
+    "MILEAGE_END",
 ]
 
 
@@ -148,6 +148,101 @@ class EditDialog(tk.Toplevel):
             if new_value != str(original):
                 changes[field] = new_value
         self.result = changes
+        self.grab_release()
+        self.destroy()
+
+    def _on_cancel(self) -> None:
+        self.result = None
+        self.grab_release()
+        self.destroy()
+
+
+class PhoneChangeDialog(tk.Toplevel):
+    """Dialog dedicated to updating a device phone number."""
+
+    def __init__(self, parent: tk.Tk, device: Device) -> None:
+        super().__init__(parent)
+        self.title("更换手机号")
+        self.transient(parent)
+        self.resizable(False, False)
+        self.grab_set()
+        self.result: Optional[str] = None
+
+        container = ttk.Frame(self, padding=10)
+        container.grid(row=0, column=0, sticky="nsew")
+        container.columnconfigure(1, weight=1)
+
+        device_name = device.POINT_NAME or "未命名"
+        ttk.Label(container, text="定标器").grid(
+            row=0, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        ttk.Label(
+            container,
+            text=f"{device_name} ({device.POINT_NO})",
+        ).grid(row=0, column=1, padx=0, pady=4, sticky="w")
+
+        ttk.Label(container, text="原手机号").grid(
+            row=1, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        original_phone = device.POINT_PHONENO or ""
+        ttk.Label(
+            container,
+            text=original_phone if original_phone else "(空)",
+        ).grid(row=1, column=1, padx=0, pady=4, sticky="w")
+
+        ttk.Label(container, text="配对手机号").grid(
+            row=2, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        ttk.Label(
+            container,
+            text=device.MATCHUP_PHONE or "(空)",
+        ).grid(row=2, column=1, padx=0, pady=4, sticky="w")
+
+        ttk.Label(container, text="前一手机号").grid(
+            row=3, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        ttk.Label(
+            container,
+            text=device.PREV_PHONE or "(空)",
+        ).grid(row=3, column=1, padx=0, pady=4, sticky="w")
+
+        ttk.Label(container, text="后一手机号").grid(
+            row=4, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        ttk.Label(
+            container,
+            text=device.NEXT_PHONE or "(空)",
+        ).grid(row=4, column=1, padx=0, pady=4, sticky="w")
+
+        ttk.Label(container, text="新手机号").grid(
+            row=5, column=0, padx=(0, 8), pady=4, sticky="e"
+        )
+        self._new_phone_var = tk.StringVar(value=original_phone)
+        entry = ttk.Entry(container, textvariable=self._new_phone_var, width=40)
+        entry.grid(row=5, column=1, padx=0, pady=4, sticky="ew")
+
+        button_frame = ttk.Frame(self, padding=(10, 0, 10, 10))
+        button_frame.grid(row=1, column=0, sticky="ew")
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+
+        ttk.Button(button_frame, text="确定", command=self._on_ok).grid(
+            row=0, column=0, padx=(0, 5), sticky="ew"
+        )
+        ttk.Button(button_frame, text="取消", command=self._on_cancel).grid(
+            row=0, column=1, padx=(5, 0), sticky="ew"
+        )
+
+        self.bind("<Return>", lambda _event: self._on_ok())
+        self.bind("<Escape>", lambda _event: self._on_cancel())
+        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+
+        entry.focus()
+        self.wait_visibility()
+        self.wait_window(self)
+
+    def _on_ok(self) -> None:
+        self.result = self._new_phone_var.get().strip()
         self.grab_release()
         self.destroy()
 
@@ -237,6 +332,8 @@ class Application(tk.Tk):
         self.devices: List[Device] = []
         self.selected_section: Optional[Section] = None
         self.selected_device: Optional[Device] = None
+        self.selected_line: Optional[SectionLine] = None
+        self._line_cache: dict[str, Optional[SectionLine]] = {}
 
         constants.STATE.reset_operations()
 
@@ -390,6 +487,7 @@ class Application(tk.Tk):
         right_frame = ttk.Frame(self)
         right_frame.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=5)
         right_frame.rowconfigure(0, weight=1)
+        right_frame.rowconfigure(1, weight=0)
         right_frame.columnconfigure(0, weight=1)
 
         devices_frame = ttk.LabelFrame(right_frame, text="定标器")
@@ -431,6 +529,21 @@ class Application(tk.Tk):
             device_buttons, text="删除定标器", command=self.delete_device
         )
         self.delete_device_btn.pack(side=tk.LEFT, padx=5)
+
+        line_frame = ttk.LabelFrame(right_frame, text="画线信息")
+        line_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        line_frame.columnconfigure(1, weight=1)
+
+        self.line_detail_vars: dict[str, tk.StringVar] = {}
+        for idx, field in enumerate(SECTION_LINE_DISPLAY_FIELDS):
+            ttk.Label(line_frame, text=field).grid(
+                row=idx, column=0, sticky="e", padx=5, pady=2
+            )
+            var = tk.StringVar(value="-")
+            self.line_detail_vars[field] = var
+            ttk.Label(line_frame, textvariable=var).grid(
+                row=idx, column=1, sticky="w", padx=5, pady=2
+            )
 
         # operations ---------------------------------------------------------
         operations_frame = ttk.LabelFrame(self, text="已记录操作")
@@ -517,9 +630,12 @@ class Application(tk.Tk):
 
         self.selected_section = None
         self.selected_device = None
+        self.selected_line = None
+        self._line_cache = {}
         self.devices = []
         self.devices_listbox.delete(0, tk.END)
         self._clear_section_details()
+        self._clear_line_details()
         self.refresh_operations()
         self.set_status(f"已加载 {len(sections)} 个区间。")
         self._update_controls()
@@ -556,6 +672,9 @@ class Application(tk.Tk):
         for device in devices:
             self.devices_listbox.insert(tk.END, self._device_label(device))
         self.selected_device = None
+        self.selected_line = None
+        self._line_cache = {}
+        self._clear_line_details()
         self._update_controls()
         self.set_status(
             f"区间 {section.SECTION_NAME} 包含 {len(devices)} 个定标器。"
@@ -569,7 +688,37 @@ class Application(tk.Tk):
         if index >= len(self.devices):
             return
         self.selected_device = self.devices[index]
+        self._load_line_details(self.selected_device)
         self._update_controls()
+
+    def _load_line_details(self, device: Device) -> None:
+        if not self.db:
+            self.selected_line = None
+            self._clear_line_details()
+            return
+
+        point_no = device.POINT_NO
+        fetched_from_db = point_no not in self._line_cache
+        if fetched_from_db:
+            try:
+                line = self.db.fetch_section_line(point_no)
+            except Exception as exc:  # pragma: no cover - requires database
+                messagebox.showerror("读取失败", f"读取画线数据失败: {exc}", parent=self)
+                self.set_status("读取画线数据失败。")
+                line = None
+            self._line_cache[point_no] = line
+        else:
+            line = self._line_cache[point_no]
+
+        self.selected_line = line
+        self._display_line_details(line)
+
+        if line is None:
+            self.set_status("此定标器无画线数据。")
+        else:
+            start = line.MILEAGE_START if line.MILEAGE_START not in (None, "") else "-"
+            end = line.MILEAGE_END if line.MILEAGE_END not in (None, "") else "-"
+            self.set_status(f"画线范围：{start} - {end}。")
 
     # ------------------------------------------------------------------
     def update_section(self) -> None:
@@ -715,13 +864,16 @@ class Application(tk.Tk):
             return
 
         device = self.selected_device
-        try:
-            line = self.db.fetch_section_line(device.POINT_NO)
-        except Exception as exc:  # pragma: no cover - requires database
-            messagebox.showerror("删除失败", f"读取画线数据失败: {exc}", parent=self)
-            return
+        line = self.selected_line
+        if line is None:
+            try:
+                line = self.db.fetch_section_line(device.POINT_NO)
+            except Exception as exc:  # pragma: no cover - requires database
+                messagebox.showerror("删除失败", f"读取画线数据失败: {exc}", parent=self)
+                return
+            self._line_cache[device.POINT_NO] = line
 
-        if not line:
+        if line is None:
             messagebox.showinfo("提示", "此定标器无画线数据。", parent=self)
             return
 
@@ -734,6 +886,9 @@ class Application(tk.Tk):
             {"PKID": line.PKID},
             line.PRIMARY_KEYS,
         )
+        self.selected_line = None
+        self._line_cache[device.POINT_NO] = None
+        self._display_line_details(None)
         messagebox.showinfo("已记录", "删除画线操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("删除画线操作已加入队列。")
@@ -745,17 +900,17 @@ class Application(tk.Tk):
             return
 
         device = self.selected_device
-        dialog = EditDialog(self, "更换手机号", DEVICE_PHONE_FIELDS, device)
-        updates = dialog.result
-        if updates is None:
+        dialog = PhoneChangeDialog(self, device)
+        new_phone = dialog.result
+        if new_phone is None:
             return
-        if not updates:
+
+        current_phone = device.POINT_PHONENO or ""
+        if new_phone == current_phone:
             messagebox.showinfo("提示", "未检测到修改。", parent=self)
             return
 
-        updated = replace(device)
-        for field, value in updates.items():
-            setattr(updated, field, value)
+        updated = replace(device, POINT_PHONENO=new_phone)
 
         if self.devices_listbox.curselection():
             idx = self.devices_listbox.curselection()[0]
@@ -765,7 +920,11 @@ class Application(tk.Tk):
             self.devices_listbox.selection_set(idx)
         self.selected_device = updated
 
-        self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=updates)
+        self.db.queue_update(
+            updated,
+            updated.PRIMARY_KEYS,
+            changes={"POINT_PHONENO": new_phone},
+        )
         messagebox.showinfo("已记录", "手机号更新操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("手机号更新操作已加入队列。")
@@ -1117,6 +1276,10 @@ class Application(tk.Tk):
         phone_state = tk.DISABLED
         if self.selected_device is device and device.TYPE != "定标器":
             phone_state = tk.NORMAL
+        line_state = tk.NORMAL if self.selected_line else tk.DISABLED
+        self.device_menu.entryconfig(
+            self._device_menu_delete_line_index, state=line_state
+        )
         self.device_menu.entryconfig(
             self._device_menu_change_phone_index, state=phone_state
         )
@@ -1125,6 +1288,31 @@ class Application(tk.Tk):
             self.device_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.device_menu.grab_release()
+
+    # ------------------------------------------------------------------
+    def _display_line_details(self, line: Optional[SectionLine]) -> None:
+        if not hasattr(self, "line_detail_vars"):
+            return
+        if line is None:
+            for var in self.line_detail_vars.values():
+                var.set("-")
+            return
+
+        values = {
+            "PKID": line.PKID,
+            "POINT_NO": line.POINT_NO,
+            "MILEAGE_START": line.MILEAGE_START,
+            "MILEAGE_END": line.MILEAGE_END,
+        }
+        for field, var in self.line_detail_vars.items():
+            value = values.get(field)
+            if value in (None, ""):
+                var.set("-")
+            else:
+                var.set(str(value))
+
+    def _clear_line_details(self) -> None:
+        self._display_line_details(None)
 
     # ------------------------------------------------------------------
     def _display_section_details(self, section: Section) -> None:
@@ -1140,6 +1328,7 @@ class Application(tk.Tk):
         connected = self.db is not None
         section_selected = self.selected_section is not None
         device_selected = self.selected_device is not None
+        line_available = self.selected_line is not None
         operations_available = bool(constants.STATE.get_operations())
 
         self.connect_button.configure(state=tk.DISABLED if connected else tk.NORMAL)
@@ -1152,6 +1341,8 @@ class Application(tk.Tk):
             self.devices_listbox.configure(state=tk.DISABLED)
             self.devices_listbox.selection_clear(0, tk.END)
             self.selected_device = None
+            self.selected_line = None
+            self._clear_line_details()
 
         self.update_section_btn.configure(state=tk.NORMAL if section_selected else tk.DISABLED)
         self.update_device_btn.configure(state=tk.NORMAL if device_selected else tk.DISABLED)
@@ -1210,7 +1401,7 @@ class Application(tk.Tk):
         )
         self.device_menu.entryconfig(
             self._device_menu_delete_line_index,
-            state=tk.NORMAL if device_selected else tk.DISABLED,
+            state=tk.NORMAL if device_selected and line_available else tk.DISABLED,
         )
         phone_state = tk.NORMAL if device_selected else tk.DISABLED
         self.device_menu.entryconfig(
