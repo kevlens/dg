@@ -427,7 +427,7 @@ class Application(tk.Tk):
         # connection controls -------------------------------------------------
         conn_frame = ttk.LabelFrame(self, text="数据库连接")
         conn_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
-        for col in range(9):
+        for col in range(10):
             conn_frame.columnconfigure(col, weight=1)
 
         ttk.Label(conn_frame, text="服务器").grid(row=0, column=0, padx=5, pady=5, sticky="e")
@@ -456,6 +456,11 @@ class Application(tk.Tk):
 
         self.connect_button = ttk.Button(conn_frame, text="连接", command=self.connect)
         self.connect_button.grid(row=0, column=8, padx=5, pady=5)
+
+        self.disconnect_button = ttk.Button(
+            conn_frame, text="断开", command=self.disconnect
+        )
+        self.disconnect_button.grid(row=0, column=9, padx=5, pady=5)
 
         # section list -------------------------------------------------------
         left_frame = ttk.Frame(self)
@@ -633,6 +638,37 @@ class Application(tk.Tk):
         self.db.start_keepalive()
         self.set_status("连接成功，正在加载区间…")
         self.load_sections()
+
+    # ------------------------------------------------------------------
+    def disconnect(self) -> None:
+        if not self.db:
+            return
+
+        self.set_status("正在断开连接…")
+        self.update_idletasks()
+
+        try:
+            self.db.close()
+        except Exception:  # pragma: no cover - best effort cleanup
+            pass
+
+        self.db = None
+        constants.STATE.connection_user = ""
+        self.sections = []
+        self.devices = []
+        self.selected_section = None
+        self.selected_device = None
+        self.selected_line = None
+        self._line_cache = {}
+
+        self.section_listbox.delete(0, tk.END)
+        self.devices_listbox.delete(0, tk.END)
+        self._clear_section_details()
+        self._clear_line_details()
+        self.operations_listbox.selection_clear(0, tk.END)
+
+        self.set_status("数据库已断开，可重新连接。")
+        self._update_controls()
 
     # ------------------------------------------------------------------
     def load_sections(self) -> None:
@@ -1357,6 +1393,7 @@ class Application(tk.Tk):
         operations_available = bool(constants.STATE.get_operations())
 
         self.connect_button.configure(state=tk.DISABLED if connected else tk.NORMAL)
+        self.disconnect_button.configure(state=tk.NORMAL if connected else tk.DISABLED)
         self.refresh_sections_btn.configure(state=tk.NORMAL if connected else tk.DISABLED)
         self.section_listbox.configure(state=tk.NORMAL if connected else tk.DISABLED)
 
@@ -1436,7 +1473,7 @@ class Application(tk.Tk):
     # ------------------------------------------------------------------
     def on_close(self) -> None:
         if self.db:
-            self.db.close()
+            self.disconnect()
         self.destroy()
 
 
