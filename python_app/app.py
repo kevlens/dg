@@ -469,6 +469,8 @@ class Application(tk.Tk):
             messagebox.showwarning("提示", "请完整填写连接信息。", parent=self)
             return
 
+        self.connect_button.configure(state=tk.DISABLED)
+
         connection_string = (
             f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={host};"
             f"DATABASE={database};UID={user};PWD={password}"
@@ -486,6 +488,7 @@ class Application(tk.Tk):
             messagebox.showerror("连接失败", str(exc), parent=self)
             self.set_status("连接失败，请重试。")
             self.db = None
+            self._update_controls()
             return
 
         constants.STATE.connection_user = user
@@ -1020,7 +1023,7 @@ class Application(tk.Tk):
                 for key, value in op.payload.items():
                     if key in op.primary_keys:
                         continue
-                    if value not in (None, ""):
+                    if op.operation == "UPDATE" or value not in (None, ""):
                         detail_parts.append(f"{key}={self._display_value(value)}")
 
         if detail_parts:
@@ -1139,6 +1142,7 @@ class Application(tk.Tk):
         device_selected = self.selected_device is not None
         operations_available = bool(constants.STATE.get_operations())
 
+        self.connect_button.configure(state=tk.DISABLED if connected else tk.NORMAL)
         self.refresh_sections_btn.configure(state=tk.NORMAL if connected else tk.DISABLED)
         self.section_listbox.configure(state=tk.NORMAL if connected else tk.DISABLED)
 
