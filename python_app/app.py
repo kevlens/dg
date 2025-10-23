@@ -1,8 +1,11 @@
 """Tkinter interface that mirrors the original WinForms workflow."""
 from __future__ import annotations
 
+import csv
 from dataclasses import replace
-from typing import List, Optional
+from datetime import datetime
+from pathlib import Path
+from typing import Callable, List, Optional
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -38,6 +41,46 @@ SECTION_EDIT_FIELDS = [
     "END_MILE",
     "LINE_NAME",
     "LINE_DIR",
+]
+
+SECTION_CREATE_FIELDS = [
+    "SECTION_ID",
+    "SECTION_NAME",
+    "DEPT_CODE",
+    "START_MILE",
+    "END_MILE",
+    "LINE_NAME",
+    "LINE_DIR",
+    "START_SCALER_INDEX",
+    "END_SCALER_INDEX",
+    "STATION_STATION",
+    "GC_VOL",
+    "ENVIRONMENT_VOL",
+]
+
+DEVICE_CREATE_FIELDS = [
+    "POINT_NO",
+    "POINT_NAME",
+    "TYPE",
+    "POSITION",
+    "POINT_FLAG",
+    "POINT_NOTE",
+    "POINT_PHONENO",
+    "MATCHUP_PHONE",
+    "PREV_PHONE",
+    "NEXT_PHONE",
+    "LINE_NAME",
+    "LINE_DIR",
+    "LINE_CODE",
+    "MILEAGE_COORDINATE",
+    "POINT_ORDER",
+]
+
+DEVICE_PHONE_FIELDS = [
+    "POINT_PHONENO",
+    "MATCHUP_PHONE",
+    "PREV_PHONE",
+    "NEXT_PHONE",
 ]
 
 
@@ -114,6 +157,72 @@ class EditDialog(tk.Toplevel):
         self.destroy()
 
 
+class BoundaryWindow(tk.Toplevel):
+    """Simple viewer for boundary records."""
+
+    def __init__(self, parent: tk.Tk, fetcher: Callable[[], List[object]]) -> None:
+        super().__init__(parent)
+        self.title("分界线数据")
+        self.geometry("480x360")
+        self.minsize(420, 300)
+        self.transient(parent)
+
+        self._fetcher = fetcher
+
+        container = ttk.Frame(self, padding=10)
+        container.grid(row=0, column=0, sticky="nsew")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+
+        columns = ("PKID", "SECTION_ID", "BOUNDARY_NAME")
+        self.tree = ttk.Treeview(container, columns=columns, show="headings")
+        for column in columns:
+            self.tree.heading(column, text=column)
+            self.tree.column(column, width=140, anchor="center")
+        self.tree.grid(row=0, column=0, sticky="nsew")
+
+        scroll = ttk.Scrollbar(container, orient=tk.VERTICAL, command=self.tree.yview)
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.tree.configure(yscrollcommand=scroll.set)
+
+        button_frame = ttk.Frame(container)
+        button_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+
+        ttk.Button(button_frame, text="刷新", command=self.refresh).grid(
+            row=0, column=0, padx=(0, 5), sticky="ew"
+        )
+        ttk.Button(button_frame, text="关闭", command=self.destroy).grid(
+            row=0, column=1, padx=(5, 0), sticky="ew"
+        )
+
+        self.refresh()
+
+    def refresh(self) -> None:
+        try:
+            boundaries = self._fetcher()
+        except DatabaseError as exc:  # pragma: no cover - requires database
+            messagebox.showerror("读取失败", str(exc), parent=self)
+            return
+
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        for boundary in boundaries:
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    getattr(boundary, "PKID", ""),
+                    getattr(boundary, "SECTION_ID", ""),
+                    getattr(boundary, "BOUNDARY_NAME", ""),
+                ),
+            )
+
+
 class Application(tk.Tk):
     """Main window providing a UI similar to the WinForms tool."""
 
@@ -131,9 +240,59 @@ class Application(tk.Tk):
 
         constants.STATE.reset_operations()
 
+        self._build_menus()
         self._build_ui()
         self._update_controls()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    # ------------------------------------------------------------------
+    def _build_menus(self) -> None:
+        menubar = tk.Menu(self)
+
+        self.system_menu = tk.Menu(menubar, tearoff=0)
+        self.system_menu.add_command(label="重新加载", command=self.load_sections)
+        self._menu_reload_index = self.system_menu.index("end")
+        self.system_menu.add_command(
+            label="初始化内网数据", command=self.initialize_intranet_data
+        )
+        self._menu_init_index = self.system_menu.index("end")
+        self.system_menu.add_command(label="分界线数据", command=self.show_boundaries)
+        self._menu_boundary_index = self.system_menu.index("end")
+        self.system_menu.add_command(label="新增区间", command=self.add_section)
+        self._menu_add_section_index = self.system_menu.index("end")
+        self.system_menu.add_command(label="新增定标器", command=self.add_device)
+        self._menu_add_device_index = self.system_menu.index("end")
+        self.system_menu.add_separator()
+        self.system_menu.add_command(label="生成操作 SQL", command=self.export_sql)
+        self._menu_export_index = self.system_menu.index("end")
+        menubar.add_cascade(label="系统", menu=self.system_menu)
+
+        self.import_menu = tk.Menu(menubar, tearoff=0)
+        self.import_menu.add_command(
+            label="导入EXCEL",
+            command=lambda: self._not_implemented("导入EXCEL"),
+            state=tk.DISABLED,
+        )
+        self._menu_import_excel_index = self.import_menu.index("end")
+        self.import_menu.add_command(
+            label="导入线路数据",
+            command=lambda: self._not_implemented("导入线路数据"),
+        )
+        self._menu_import_line_index = self.import_menu.index("end")
+        self.import_menu.add_command(
+            label="导入车站数据",
+            command=lambda: self._not_implemented("导入车站数据"),
+        )
+        self._menu_import_station_index = self.import_menu.index("end")
+        menubar.add_cascade(label="导入", menu=self.import_menu)
+
+        self.backup_menu = tk.Menu(menubar, tearoff=0)
+        self.backup_menu.add_command(label="备份当前数据", command=self.backup_data)
+        self._menu_backup_index = self.backup_menu.index("end")
+        menubar.add_cascade(label="备份", menu=self.backup_menu)
+
+        self.config(menu=menubar)
+        self.menubar = menubar
 
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
@@ -198,6 +357,7 @@ class Application(tk.Tk):
         section_scroll.grid(row=0, column=1, sticky="ns")
         self.section_listbox.configure(yscrollcommand=section_scroll.set)
         self.section_listbox.bind("<<ListboxSelect>>", self.on_section_selected)
+        self.section_listbox.bind("<Button-3>", self._on_section_context)
 
         self.refresh_sections_btn = ttk.Button(
             sections_frame, text="刷新区间", command=self.load_sections
@@ -245,6 +405,21 @@ class Application(tk.Tk):
         device_scroll.grid(row=0, column=1, sticky="ns")
         self.devices_listbox.configure(yscrollcommand=device_scroll.set)
         self.devices_listbox.bind("<<ListboxSelect>>", self.on_device_selected)
+        self.devices_listbox.bind("<Button-3>", self._on_device_context)
+
+        self.section_menu = tk.Menu(self, tearoff=0)
+        self.section_menu.add_command(label="新增定标器", command=self.add_device)
+        self._section_menu_add_device_index = self.section_menu.index("end")
+        self.section_menu.add_command(label="删除区间", command=self.delete_section)
+        self._section_menu_delete_index = self.section_menu.index("end")
+
+        self.device_menu = tk.Menu(self, tearoff=0)
+        self.device_menu.add_command(label="删除定标器", command=self.delete_device)
+        self._device_menu_delete_index = self.device_menu.index("end")
+        self.device_menu.add_command(label="删除画线", command=self.delete_device_line)
+        self._device_menu_delete_line_index = self.device_menu.index("end")
+        self.device_menu.add_command(label="更换手机号", command=self.change_device_phone)
+        self._device_menu_change_phone_index = self.device_menu.index("end")
 
         device_buttons = ttk.Frame(devices_frame)
         device_buttons.grid(row=1, column=0, columnspan=2, pady=5)
@@ -335,8 +510,7 @@ class Application(tk.Tk):
         self.sections = sections
         self.section_listbox.delete(0, tk.END)
         for section in sections:
-            label = f"{section.SECTION_NAME} ({section.SECTION_ID})"
-            self.section_listbox.insert(tk.END, label)
+            self.section_listbox.insert(tk.END, self._section_label(section))
 
         self.selected_section = None
         self.selected_device = None
@@ -377,11 +551,7 @@ class Application(tk.Tk):
         self.devices_listbox.configure(state=tk.NORMAL)
         self.devices_listbox.delete(0, tk.END)
         for device in devices:
-            label = (
-                f"{device.POINT_NAME or '未命名'} ({device.POINT_NO})"
-                f" - {device.TYPE or '未知类型'}"
-            )
-            self.devices_listbox.insert(tk.END, label)
+            self.devices_listbox.insert(tk.END, self._device_label(device))
         self.selected_device = None
         self._update_controls()
         self.set_status(
@@ -417,9 +587,8 @@ class Application(tk.Tk):
         if self.section_listbox.curselection():
             idx = self.section_listbox.curselection()[0]
             self.sections[idx] = updated
-            label = f"{updated.SECTION_NAME} ({updated.SECTION_ID})"
             self.section_listbox.delete(idx)
-            self.section_listbox.insert(idx, label)
+            self.section_listbox.insert(idx, self._section_label(updated))
             self.section_listbox.selection_set(idx)
         self.selected_section = updated
         self._display_section_details(updated)
@@ -447,12 +616,8 @@ class Application(tk.Tk):
         if self.devices_listbox.curselection():
             idx = self.devices_listbox.curselection()[0]
             self.devices[idx] = updated
-            label = (
-                f"{updated.POINT_NAME or '未命名'} ({updated.POINT_NO})"
-                f" - {updated.TYPE or '未知类型'}"
-            )
             self.devices_listbox.delete(idx)
-            self.devices_listbox.insert(idx, label)
+            self.devices_listbox.insert(idx, self._device_label(updated))
             self.devices_listbox.selection_set(idx)
         self.selected_device = updated
         self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=updates)
@@ -478,6 +643,337 @@ class Application(tk.Tk):
         messagebox.showinfo("已记录", "删除操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("定标器删除操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def delete_section(self) -> None:
+        if not (self.db and self.selected_section):
+            messagebox.showwarning("提示", "请选择要删除的区间。", parent=self)
+            return
+
+        section = self.selected_section
+        confirm = messagebox.askyesno(
+            "确认删除",
+            f"确定要删除区间 {section.SECTION_NAME} ({section.SECTION_ID}) 吗？",
+            parent=self,
+        )
+        if not confirm:
+            return
+
+        try:
+            devices = self.db.fetch_devices(section.SECTION_ID)
+        except Exception as exc:  # pragma: no cover - requires database
+            messagebox.showerror("删除失败", f"无法读取区间定标器: {exc}", parent=self)
+            return
+
+        for device in devices:
+            self.db.queue_delete(
+                "BROKENRAIL_BDATA_DEVICE",
+                {"POINT_NO": device.POINT_NO},
+                ("POINT_NO",),
+            )
+            try:
+                line = self.db.fetch_section_line(device.POINT_NO)
+            except Exception:  # pragma: no cover - requires database
+                line = None
+            if line:
+                self.db.queue_delete(
+                    line.TABLE_NAME,
+                    {"PKID": line.PKID},
+                    line.PRIMARY_KEYS,
+                )
+
+        self.db.queue_delete(
+            "BROKENRAIL_BDATA_SECTION",
+            {"SECTION_ID": section.SECTION_ID},
+            ("SECTION_ID",),
+        )
+
+        if self.section_listbox.curselection():
+            index = self.section_listbox.curselection()[0]
+        else:
+            index = self.sections.index(section)
+        self.section_listbox.delete(index)
+        del self.sections[index]
+
+        self.selected_section = None
+        self.selected_device = None
+        self.devices = []
+        self.devices_listbox.delete(0, tk.END)
+        self._clear_section_details()
+
+        messagebox.showinfo("已记录", "删除区间操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("区间删除操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def delete_device_line(self) -> None:
+        if not (self.db and self.selected_device):
+            messagebox.showwarning("提示", "请选择定标器。", parent=self)
+            return
+
+        device = self.selected_device
+        try:
+            line = self.db.fetch_section_line(device.POINT_NO)
+        except Exception as exc:  # pragma: no cover - requires database
+            messagebox.showerror("删除失败", f"读取画线数据失败: {exc}", parent=self)
+            return
+
+        if not line:
+            messagebox.showinfo("提示", "此定标器无画线数据。", parent=self)
+            return
+
+        confirm = messagebox.askyesno("确认删除", "确定要删除画线数据吗？", parent=self)
+        if not confirm:
+            return
+
+        self.db.queue_delete(
+            line.TABLE_NAME,
+            {"PKID": line.PKID},
+            line.PRIMARY_KEYS,
+        )
+        messagebox.showinfo("已记录", "删除画线操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("删除画线操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def change_device_phone(self) -> None:
+        if not (self.db and self.selected_device):
+            messagebox.showwarning("提示", "请选择定标器。", parent=self)
+            return
+
+        device = self.selected_device
+        dialog = EditDialog(self, "更换手机号", DEVICE_PHONE_FIELDS, device)
+        updates = dialog.result
+        if updates is None:
+            return
+        if not updates:
+            messagebox.showinfo("提示", "未检测到修改。", parent=self)
+            return
+
+        updated = replace(device)
+        for field, value in updates.items():
+            setattr(updated, field, value)
+
+        if self.devices_listbox.curselection():
+            idx = self.devices_listbox.curselection()[0]
+            self.devices[idx] = updated
+            self.devices_listbox.delete(idx)
+            self.devices_listbox.insert(idx, self._device_label(updated))
+            self.devices_listbox.selection_set(idx)
+        self.selected_device = updated
+
+        self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=updates)
+        messagebox.showinfo("已记录", "手机号更新操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("手机号更新操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def add_section(self) -> None:
+        if not self.db:
+            messagebox.showwarning("提示", "请先连接数据库。", parent=self)
+            return
+
+        template = Section(
+            SECTION_ID="",
+            SECTION_NAME="",
+            DEPT_CODE="",
+            END_SCALER_INDEX="",
+            END_MILE="",
+            ENVIRONMENT_VOL="",
+            GC_VOL="",
+            LINE_DIR="",
+            LINE_NAME="",
+            START_SCALER_INDEX="",
+            START_MILE="",
+            STATION_STATION="",
+        )
+        dialog = EditDialog(self, "新增区间", SECTION_CREATE_FIELDS, template)
+        updates = dialog.result
+        if updates is None:
+            return
+
+        payload = template.to_payload()
+        payload.update(updates)
+
+        section_id = payload.get("SECTION_ID", "").strip()
+        section_name = payload.get("SECTION_NAME", "").strip()
+        if not section_id:
+            messagebox.showwarning("提示", "区间编号不能为空。", parent=self)
+            return
+        if not section_name:
+            messagebox.showwarning("提示", "区间名称不能为空。", parent=self)
+            return
+
+        payload["SECTION_ID"] = section_id
+        payload["SECTION_NAME"] = section_name
+
+        new_section = Section(**payload)
+        self.sections.append(new_section)
+        self.section_listbox.insert(tk.END, self._section_label(new_section))
+        new_index = len(self.sections) - 1
+        self.section_listbox.selection_clear(0, tk.END)
+        self.section_listbox.selection_set(new_index)
+        self.section_listbox.event_generate("<<ListboxSelect>>")
+
+        self.db.queue_insert(new_section, new_section.PRIMARY_KEYS)
+        messagebox.showinfo("已记录", "新增区间操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("新增区间操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def add_device(self) -> None:
+        if not (self.db and self.selected_section):
+            messagebox.showwarning("提示", "请选择区间。", parent=self)
+            return
+
+        section = self.selected_section
+        template = Device(POINT_NO="", SECTION_ID=section.SECTION_ID)
+        dialog = EditDialog(self, "新增定标器", DEVICE_CREATE_FIELDS, template)
+        updates = dialog.result
+        if updates is None:
+            return
+
+        payload = template.to_payload()
+        payload.update(updates)
+        payload["SECTION_ID"] = section.SECTION_ID
+
+        point_no = payload.get("POINT_NO", "").strip()
+        if not point_no:
+            messagebox.showwarning("提示", "定标器编号不能为空。", parent=self)
+            return
+        payload["POINT_NO"] = point_no
+        if payload.get("POINT_NAME") is not None:
+            payload["POINT_NAME"] = payload["POINT_NAME"].strip()
+
+        for field in ("POINT_ORDER",):
+            value = payload.get(field)
+            if value in (None, ""):
+                payload[field] = None
+            else:
+                try:
+                    payload[field] = int(value)
+                except ValueError:
+                    messagebox.showwarning("提示", "序号必须为数字。", parent=self)
+                    return
+
+        for field in ("MILEAGE_COORDINATE",):
+            value = payload.get(field)
+            if value in (None, ""):
+                payload[field] = None
+            else:
+                try:
+                    payload[field] = float(value)
+                except ValueError:
+                    messagebox.showwarning("提示", "里程坐标必须为数字。", parent=self)
+                    return
+
+        new_device = Device(**payload)
+        self.devices.append(new_device)
+        self.devices_listbox.insert(tk.END, self._device_label(new_device))
+        new_index = len(self.devices) - 1
+        self.devices_listbox.selection_clear(0, tk.END)
+        self.devices_listbox.selection_set(new_index)
+        self.selected_device = new_device
+
+        self.db.queue_insert(new_device, new_device.PRIMARY_KEYS)
+        messagebox.showinfo("已记录", "新增定标器操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("新增定标器操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def initialize_intranet_data(self) -> None:
+        if not self.db:
+            messagebox.showwarning("提示", "请先连接数据库。", parent=self)
+            return
+
+        self.set_status("正在生成内网初始化 SQL…")
+        self.update_idletasks()
+
+        try:
+            sections = self.db.fetch_sections()
+            devices = self.db.fetch_all_devices()
+            lines = self.db.fetch_all_section_lines()
+            boundaries = self.db.fetch_boundaries()
+        except Exception as exc:  # pragma: no cover - requires database
+            messagebox.showerror("生成失败", f"读取数据失败: {exc}", parent=self)
+            self.set_status("生成失败。")
+            return
+
+        operations: List[constants.PushOperation] = []
+        added_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for record in sections:
+            operations.append(self._make_insert_operation(record, added_at))
+        for record in devices:
+            operations.append(self._make_insert_operation(record, added_at))
+        for record in lines:
+            operations.append(self._make_insert_operation(record, added_at))
+        for record in boundaries:
+            operations.append(self._make_insert_operation(record, added_at))
+
+        if not operations:
+            messagebox.showinfo("提示", "未找到可导出的数据。", parent=self)
+            self.set_status("没有可导出的数据。")
+            return
+
+        prefix = constants.STATE.connection_user + "_" if constants.STATE.connection_user else ""
+        files = save_sql_scripts(operations, prefix=f"INIT_{prefix}")
+        message = "已生成如下文件:\n" + "\n".join(files)
+        messagebox.showinfo("初始化完成", message, parent=self)
+        self.set_status("内网初始化 SQL 已生成。")
+
+    # ------------------------------------------------------------------
+    def backup_data(self) -> None:
+        if not self.db:
+            messagebox.showwarning("提示", "请先连接数据库。", parent=self)
+            return
+
+        self.set_status("正在备份数据…")
+        self.update_idletasks()
+
+        try:
+            sections = self.db.fetch_sections()
+            devices = self.db.fetch_all_devices()
+            lines = self.db.fetch_all_section_lines()
+            boundaries = self.db.fetch_boundaries()
+        except Exception as exc:  # pragma: no cover - requires database
+            messagebox.showerror("备份失败", f"读取数据失败: {exc}", parent=self)
+            self.set_status("备份失败。")
+            return
+
+        backup_dir = Path.cwd() / "Backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+        files = [
+            self._write_backup_csv(
+                backup_dir / f"sections_{timestamp}.csv",
+                [section.to_payload() for section in sections],
+            ),
+            self._write_backup_csv(
+                backup_dir / f"devices_{timestamp}.csv",
+                [device.to_payload() for device in devices],
+            ),
+            self._write_backup_csv(
+                backup_dir / f"section_lines_{timestamp}.csv",
+                [line.to_payload() for line in lines],
+            ),
+            self._write_backup_csv(
+                backup_dir / f"boundaries_{timestamp}.csv",
+                [boundary.to_payload() for boundary in boundaries],
+            ),
+        ]
+
+        message = "已导出如下备份文件:\n" + "\n".join(files)
+        messagebox.showinfo("备份完成", message, parent=self)
+        self.set_status("数据备份完成。")
+
+    # ------------------------------------------------------------------
+    def show_boundaries(self) -> None:
+        if not self.db:
+            messagebox.showwarning("提示", "请先连接数据库。", parent=self)
+            return
+
+        BoundaryWindow(self, lambda: self.db.fetch_boundaries())
 
     # ------------------------------------------------------------------
     def export_sql(self) -> None:
@@ -538,6 +1034,96 @@ class Application(tk.Tk):
         return str(value)
 
     # ------------------------------------------------------------------
+    def _section_label(self, section: Section) -> str:
+        name = section.SECTION_NAME or "未命名区间"
+        return f"{name} ({section.SECTION_ID})"
+
+    def _device_label(self, device: Device) -> str:
+        name = device.POINT_NAME or "未命名"
+        dtype = device.TYPE or "未知类型"
+        return f"{name} ({device.POINT_NO}) - {dtype}"
+
+    def _make_insert_operation(
+        self, record: object, added_at: str
+    ) -> constants.PushOperation:
+        if hasattr(record, "to_payload"):
+            payload = record.to_payload()
+        else:
+            payload = {
+                key: value
+                for key, value in vars(record).items()
+                if not key.startswith("_")
+            }
+        table_name = getattr(record, "TABLE_NAME", record.__class__.__name__)
+        primary_keys = list(getattr(record, "PRIMARY_KEYS", ()))
+        return constants.PushOperation(
+            operation="INSERT",
+            table=table_name,
+            payload=payload,
+            primary_keys=primary_keys,
+            added_at=added_at,
+        )
+
+    def _write_backup_csv(self, path: Path, rows: List[dict]) -> str:
+        if not rows:
+            path.write_text("", encoding="utf-8")
+            return str(path)
+
+        fieldnames: List[str] = sorted({key for row in rows for key in row.keys()})
+        with path.open("w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in rows:
+                normalized = {
+                    key: "" if row.get(key) is None else row.get(key)
+                    for key in fieldnames
+                }
+                writer.writerow(normalized)
+        return str(path)
+
+    def _not_implemented(self, feature: str) -> None:
+        messagebox.showinfo(
+            "提示", f"{feature} 功能暂未在 Python 版本中实现。", parent=self
+        )
+
+    def _on_section_context(self, event: tk.Event[tk.Listbox]) -> None:  # type: ignore[type-var]
+        if not self.sections:
+            return
+        index = self.section_listbox.nearest(event.y)
+        if index < 0 or index >= len(self.sections):
+            return
+        self.section_listbox.selection_clear(0, tk.END)
+        self.section_listbox.selection_set(index)
+        self.section_listbox.event_generate("<<ListboxSelect>>")
+        try:
+            self.section_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.section_menu.grab_release()
+
+    def _on_device_context(self, event: tk.Event[tk.Listbox]) -> None:  # type: ignore[type-var]
+        if not self.devices:
+            return
+        index = self.devices_listbox.nearest(event.y)
+        if index < 0 or index >= len(self.devices):
+            return
+        self.devices_listbox.selection_clear(0, tk.END)
+        self.devices_listbox.selection_set(index)
+        self.devices_listbox.event_generate("<<ListboxSelect>>")
+
+        device = self.devices[index]
+        phone_state = tk.DISABLED
+        if self.selected_device is device and device.TYPE != "定标器":
+            phone_state = tk.NORMAL
+        self.device_menu.entryconfig(
+            self._device_menu_change_phone_index, state=phone_state
+        )
+
+        try:
+            self.device_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.device_menu.grab_release()
+
+    # ------------------------------------------------------------------
     def _display_section_details(self, section: Section) -> None:
         for field in SECTION_DISPLAY_FIELDS:
             value = getattr(section, field, "") or "-"
@@ -568,8 +1154,64 @@ class Application(tk.Tk):
         self.delete_device_btn.configure(state=tk.NORMAL if device_selected else tk.DISABLED)
         self.export_sql_btn.configure(state=tk.NORMAL if operations_available else tk.DISABLED)
 
+        self._update_menu_states(
+            connected, section_selected, device_selected, operations_available
+        )
+
     def set_status(self, message: str) -> None:
         self.status_var.set(message)
+
+    # ------------------------------------------------------------------
+    def _update_menu_states(
+        self,
+        connected: bool,
+        section_selected: bool,
+        device_selected: bool,
+        operations_available: bool,
+    ) -> None:
+        state_connected = tk.NORMAL if connected else tk.DISABLED
+
+        self.system_menu.entryconfig(self._menu_reload_index, state=state_connected)
+        self.system_menu.entryconfig(self._menu_init_index, state=state_connected)
+        self.system_menu.entryconfig(self._menu_boundary_index, state=state_connected)
+        self.system_menu.entryconfig(self._menu_add_section_index, state=state_connected)
+        self.system_menu.entryconfig(
+            self._menu_add_device_index,
+            state=tk.NORMAL if section_selected else tk.DISABLED,
+        )
+        self.system_menu.entryconfig(
+            self._menu_export_index,
+            state=tk.NORMAL if operations_available else tk.DISABLED,
+        )
+
+        self.import_menu.entryconfig(
+            self._menu_import_line_index, state=state_connected
+        )
+        self.import_menu.entryconfig(
+            self._menu_import_station_index, state=state_connected
+        )
+        self.backup_menu.entryconfig(self._menu_backup_index, state=state_connected)
+
+        self.section_menu.entryconfig(
+            self._section_menu_add_device_index,
+            state=tk.NORMAL if section_selected else tk.DISABLED,
+        )
+        self.section_menu.entryconfig(
+            self._section_menu_delete_index,
+            state=tk.NORMAL if section_selected else tk.DISABLED,
+        )
+        self.device_menu.entryconfig(
+            self._device_menu_delete_index,
+            state=tk.NORMAL if device_selected else tk.DISABLED,
+        )
+        self.device_menu.entryconfig(
+            self._device_menu_delete_line_index,
+            state=tk.NORMAL if device_selected else tk.DISABLED,
+        )
+        phone_state = tk.NORMAL if device_selected else tk.DISABLED
+        self.device_menu.entryconfig(
+            self._device_menu_change_phone_index, state=phone_state
+        )
 
     # ------------------------------------------------------------------
     def on_close(self) -> None:
