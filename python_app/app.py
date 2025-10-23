@@ -84,6 +84,11 @@ SECTION_LINE_DISPLAY_FIELDS = [
     "MILEAGE_END",
 ]
 
+SECTION_LINE_EDIT_FIELDS = [
+    "MILEAGE_START",
+    "MILEAGE_END",
+]
+
 
 def center_window(window: tk.Toplevel, parent: tk.Misc) -> None:
     """Center a toplevel window relative to its parent."""
@@ -545,6 +550,8 @@ class Application(tk.Tk):
         self.device_menu = tk.Menu(self, tearoff=0)
         self.device_menu.add_command(label="删除定标器", command=self.delete_device)
         self._device_menu_delete_index = self.device_menu.index("end")
+        self.device_menu.add_command(label="更新画线", command=self.update_line)
+        self._device_menu_update_line_index = self.device_menu.index("end")
         self.device_menu.add_command(label="删除画线", command=self.delete_device_line)
         self._device_menu_delete_line_index = self.device_menu.index("end")
         self.device_menu.add_command(label="更换手机号", command=self.change_device_phone)
@@ -575,6 +582,16 @@ class Application(tk.Tk):
             ttk.Label(line_frame, textvariable=var).grid(
                 row=idx, column=1, sticky="w", padx=5, pady=2
             )
+
+        self.update_line_btn = ttk.Button(
+            line_frame, text="更新画线信息", command=self.update_line
+        )
+        self.update_line_btn.grid(
+            row=len(SECTION_LINE_DISPLAY_FIELDS),
+            column=0,
+            columnspan=2,
+            pady=(10, 5),
+        )
 
         # operations ---------------------------------------------------------
         operations_frame = ttk.LabelFrame(self, text="已记录操作")
@@ -838,6 +855,50 @@ class Application(tk.Tk):
         messagebox.showinfo("已记录", "定标器更新操作已加入队列。", parent=self)
         self.refresh_operations()
         self.set_status("定标器更新操作已加入队列。")
+
+    # ------------------------------------------------------------------
+    def update_line(self) -> None:
+        if not (self.db and self.selected_device):
+            messagebox.showwarning("提示", "请选择定标器。", parent=self)
+            return
+
+        line = self.selected_line
+        if line is None:
+            messagebox.showwarning("提示", "此定标器没有画线数据。", parent=self)
+            return
+
+        dialog = EditDialog(self, "更新画线信息", SECTION_LINE_EDIT_FIELDS, line)
+        updates = dialog.result
+        if updates is None:
+            return
+        if not updates:
+            messagebox.showinfo("提示", "未检测到修改。", parent=self)
+            return
+
+        converted: dict[str, Optional[float]] = {}
+        for field, value in updates.items():
+            if value == "":
+                converted[field] = None
+            else:
+                try:
+                    converted[field] = float(value)
+                except ValueError:
+                    messagebox.showwarning("提示", "起止里程必须为数字。", parent=self)
+                    return
+
+        updated = replace(line)
+        for field, value in converted.items():
+            setattr(updated, field, value)
+
+        self.selected_line = updated
+        if self.selected_device:
+            self._line_cache[self.selected_device.POINT_NO] = updated
+        self._display_line_details(updated)
+
+        self.db.queue_update(updated, updated.PRIMARY_KEYS, changes=converted)
+        messagebox.showinfo("已记录", "画线更新操作已加入队列。", parent=self)
+        self.refresh_operations()
+        self.set_status("画线更新操作已加入队列。")
 
     # ------------------------------------------------------------------
     def delete_device(self) -> None:
@@ -1352,6 +1413,9 @@ class Application(tk.Tk):
             phone_state = tk.NORMAL
         line_state = tk.NORMAL if self.selected_line else tk.DISABLED
         self.device_menu.entryconfig(
+            self._device_menu_update_line_index, state=line_state
+        )
+        self.device_menu.entryconfig(
             self._device_menu_delete_line_index, state=line_state
         )
         self.device_menu.entryconfig(
@@ -1422,6 +1486,7 @@ class Application(tk.Tk):
         self.update_section_btn.configure(state=tk.NORMAL if section_selected else tk.DISABLED)
         self.update_device_btn.configure(state=tk.NORMAL if device_selected else tk.DISABLED)
         self.delete_device_btn.configure(state=tk.NORMAL if device_selected else tk.DISABLED)
+        self.update_line_btn.configure(state=tk.NORMAL if line_available else tk.DISABLED)
         self.export_sql_btn.configure(state=tk.NORMAL if operations_available else tk.DISABLED)
 
         self._update_menu_states(
@@ -1473,6 +1538,10 @@ class Application(tk.Tk):
         self.device_menu.entryconfig(
             self._device_menu_delete_index,
             state=tk.NORMAL if device_selected else tk.DISABLED,
+        )
+        self.device_menu.entryconfig(
+            self._device_menu_update_line_index,
+            state=tk.NORMAL if device_selected and line_available else tk.DISABLED,
         )
         self.device_menu.entryconfig(
             self._device_menu_delete_line_index,
