@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import uuid
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -1099,9 +1100,21 @@ class Application(tk.Tk):
         self.selected_device = new_device
 
         self.db.queue_insert(new_device, new_device.PRIMARY_KEYS)
-        messagebox.showinfo("已记录", "新增定标器操作已加入队列。", parent=self)
+
+        new_line = SectionLine(
+            PKID=str(uuid.uuid4()),
+            POINT_NO=new_device.POINT_NO,
+            MILEAGE_START=None,
+            MILEAGE_END=None,
+        )
+        self._line_cache[new_device.POINT_NO] = new_line
+        self.selected_line = new_line
+        self._display_line_details(new_line)
+        self.db.queue_insert(new_line, new_line.PRIMARY_KEYS)
+
+        messagebox.showinfo("已记录", "新增定标器及画线操作已加入队列。", parent=self)
         self.refresh_operations()
-        self.set_status("新增定标器操作已加入队列。")
+        self.set_status("新增定标器及画线操作已加入队列。")
 
     # ------------------------------------------------------------------
     def initialize_intranet_data(self) -> None:
