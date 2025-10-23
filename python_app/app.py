@@ -84,6 +84,28 @@ SECTION_LINE_DISPLAY_FIELDS = [
 ]
 
 
+def center_window(window: tk.Toplevel, parent: tk.Misc) -> None:
+    """Center a toplevel window relative to its parent."""
+
+    window.update_idletasks()
+    try:
+        parent.update_idletasks()
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    parent_width = max(parent.winfo_width(), 1)
+    parent_height = max(parent.winfo_height(), 1)
+    parent_x = parent.winfo_rootx()
+    parent_y = parent.winfo_rooty()
+
+    width = window.winfo_width()
+    height = window.winfo_height()
+
+    x = parent_x + max((parent_width - width) // 2, 0)
+    y = parent_y + max((parent_height - height) // 2, 0)
+    window.geometry(f"+{x}+{y}")
+
+
 class EditDialog(tk.Toplevel):
     """Modal dialog used to edit a record in a single window."""
 
@@ -138,6 +160,7 @@ class EditDialog(tk.Toplevel):
             first_entry.focus()
 
         self.wait_visibility()
+        center_window(self, parent)
         self.wait_window(self)
 
     def _on_ok(self) -> None:
@@ -239,6 +262,7 @@ class PhoneChangeDialog(tk.Toplevel):
 
         entry.focus()
         self.wait_visibility()
+        center_window(self, parent)
         self.wait_window(self)
 
     def _on_ok(self) -> None:
@@ -294,6 +318,7 @@ class BoundaryWindow(tk.Toplevel):
             row=0, column=1, padx=(5, 0), sticky="ew"
         )
 
+        center_window(self, parent)
         self.refresh()
 
     def refresh(self) -> None:
